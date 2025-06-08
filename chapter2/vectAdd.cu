@@ -23,11 +23,16 @@ void vectAdd(const float *A, const float *B, float *C, int n) {
     cudaMemcpy(A_d, A, size, cudaMemcpyHostToDevice);
     cudaMemcpy(B_d, B, size, cudaMemcpyHostToDevice);
 
-    // Launch kernel
     int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
     printf("Blocks per grid: %d\n", blocksPerGrid);
     printf("Threads per block: %d\n", threadsPerBlock);
 
+    // Warmup    
+    vectAddKernel<<<blocksPerGrid, threadsPerBlock>>>(A_d, B_d, C_d, n);
+    CHECK(cudaGetLastError());
+    cudaDeviceSynchronize();
+
+    // Benchmark
     double start_time = cpuSecond();
     for (int i = 0; i < r; ++ i)
     {

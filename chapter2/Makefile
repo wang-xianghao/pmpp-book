@@ -1,5 +1,5 @@
 NVCC = nvcc
-NVCC_FLAGS = -O3 -G -I../../include
+NVCC_FLAGS = -O3 -G -I../include
 
 SOURCES = vectAdd.cu
 TARGET = vectAdd

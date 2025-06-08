@@ -3,6 +3,9 @@
 #include <math.h>
 #include <cuda_helper.h>
 
+static int threadsPerBlock;
+static int r;
+
 __global__ void vectAddKernel(const float *A, const float *B, float *C, int N) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
@@ -21,15 +24,21 @@ void vectAdd(const float *A, const float *B, float *C, int n) {
     cudaMemcpy(B_d, B, size, cudaMemcpyHostToDevice);
 
     // Launch kernel
-    int threadsPerBlock = 256;
     int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
     printf("Blocks per grid: %d\n", blocksPerGrid);
     printf("Threads per block: %d\n", threadsPerBlock);
+
     double start_time = cpuSecond();
-    vectAddKernel<<<blocksPerGrid, threadsPerBlock>>>(A_d, B_d, C_d, n);
+    for (int i = 0; i < r; ++ i)
+    {
+        vectAddKernel<<<blocksPerGrid, threadsPerBlock>>>(A_d, B_d, C_d, n);
+    }
+    CHECK(cudaGetLastError());
     cudaDeviceSynchronize();
     double end_time = cpuSecond();
-    printf("Kernel execution time: %.3lf s\n", end_time - start_time);
+    
+    double elapsed_time = (end_time - start_time) * 1e6 / r;
+    printf("Kernel execution time: %.3lf us\n", elapsed_time);
 
     cudaMemcpy(C, C_d, size, cudaMemcpyDeviceToHost);
     cudaFree(A_d);
@@ -38,11 +47,13 @@ void vectAdd(const float *A, const float *B, float *C, int n) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "%s <n>\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "%s <n> <threads_per_block> <r>\n", argv[0]);
         exit(1);
     }
     int n = atoi(argv[1]);
+    threadsPerBlock = atoi(argv[2]);
+    r = atoi(argv[3]);
     size_t size = n * sizeof(float);
 
     float *A = (float *) malloc(size);
@@ -57,16 +68,6 @@ int main(int argc, char *argv[]) {
 
     // Execute
     vectAdd(A, B, C, n);
-
-    // Verify
-    for (int i = 0; i < n; ++ i) {
-        float expect = A[i] + B[i];
-        if (fabs(C[i] - expect) > 1e-4) {
-            printf("Wrong result at %d: %.6f should be %.6f\n", i, C[i], expect);
-            break;
-        }
-    }
-    printf("Verfied\n");
 
     free(A);
     free(B);

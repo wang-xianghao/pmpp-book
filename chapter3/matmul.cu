@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <cuda.h>
+#include <math.h>
 #include "cuda_helper.h"
 
 static int bx, by;
@@ -49,7 +50,7 @@ void matmul(float *M, float *N, float *P, int width)
     cudaDeviceSynchronize();
     double end_time = cpuSecond();
     double elapsed_time = (end_time - start_time) / r;
-    double FLOPS = (2 * width * width * width - width * width) / elapsed_time / 1e9;
+    double FLOPS = (2.0 * pow(width, 3) - pow(width, 2)) / elapsed_time / 1e9;
 
     printf("Elapsed time: %.3f s\n", elapsed_time);
     printf("Performance: %.3f GFLOPS\n", FLOPS);

@@ -1,8 +1,8 @@
 NVCC = nvcc
 NVCC_FLAGS = -O3 -I../include
 
-SOURCES = grayScale.cu blur.cu matmul.cu
-TARGET = grayScale blur matmul
+SOURCES = grayScale.cu blur.cu matmul.cu matvec.cu
+TARGET = grayScale blur matmul matvec
 
 .PHONY: all
 all: $(TARGET)

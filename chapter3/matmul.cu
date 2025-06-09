@@ -69,7 +69,6 @@ void matmul(float *M, float *N, float *P, int width)
     cudaMalloc((void **)&P_d, size);
     cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
     cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(P_d, P, size, cudaMemcpyHostToDevice);
 
     int gx = (width + bx - 1) / bx;
     int gy = (width + by - 1) / by;

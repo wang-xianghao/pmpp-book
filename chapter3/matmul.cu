@@ -37,14 +37,14 @@ void matmul(float *M, float *N, float *P, int width)
     dim3 dimGrid(gx, gy, 1);
 
     // Warmup
-    matmulKernel<<<dimGrid, dimBlock> > >(M_d, N_d, P_d, width);
+    matmulKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
     CHECK(cudaGetLastError());
     cudaDeviceSynchronize();
 
     // Benchmark
     double start_time = cpuSecond();
     for (int i = 0; i < r; ++i)
-        matmulKernel<<<dimGrid, dimBlock> > >(M_d, N_d, P_d, width);
+        matmulKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
     CHECK(cudaGetLastError());
     cudaDeviceSynchronize();
     double end_time = cpuSecond();

@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
     unsigned char *image, *grayImage;
 
     // Read image
-    FILE *fp = read_ppm_header("sample.ppm", &width, &height);
+    FILE *fp = read_ppm_header("images/sample.ppm", &width, &height);
     image = (unsigned char *) malloc(width * height * CHANNELS * sizeof(unsigned char));
     read_ppm_image(fp, image, width, height);
     printf("Image size: %d x %d\n", width, height);

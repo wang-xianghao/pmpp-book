@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
     size_t size;
 
     // Read image
-    FILE *fp = read_pgm_header("sample_gray.pgm", &width, &height);
+    FILE *fp = read_pgm_header("images/sample_gray.pgm", &width, &height);
     size = (size_t)width * height * sizeof(unsigned char);
     image = (unsigned char *)malloc(size);
     read_pgm_image(fp, image, width, height);

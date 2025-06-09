@@ -5,6 +5,7 @@
 
 static int bx, by;
 static int r;
+static int mode;
 
 __global__ void matmulKernel(float *M, float *N, float *P, int width)
 {
@@ -17,6 +18,44 @@ __global__ void matmulKernel(float *M, float *N, float *P, int width)
         for (int k = 0; k < width; ++k)
             Pval += M[row * width + k] * N[k * width + col];
         P[row * width + col] = Pval;
+    }
+}
+
+__global__ void matmulRowKernel(float *M, float *N, float *P, int width)
+{
+    int block_dim = blockDim.x * blockDim.y;
+    int block_id = blockIdx.y * gridDim.x + blockIdx.x;
+    int thread_id = threadIdx.y * blockDim.x + threadIdx.x;
+    int row = thread_id + block_id * block_dim;
+    
+    if (row < width)
+    {
+        for (int col = 0; col < width; ++ col)
+        {
+            float Pval = 0.0;
+            for (int k = 0; k < width; ++ k)
+                Pval += M[row * width + k] * N[k * width + col];
+            P[row * width + col] = Pval;
+        }
+    }
+}
+
+__global__ void matmulColKernel(float *M, float *N, float *P, int width)
+{
+    int block_dim = blockDim.x * blockDim.y;
+    int block_id = blockIdx.y * gridDim.x + blockIdx.x;
+    int thread_id = threadIdx.y * blockDim.x + threadIdx.x;
+    int col = thread_id + block_id * block_dim;
+    
+    if (col < width)
+    {
+        for (int row = 0; row < width; ++ row)
+        {
+            float Pval = 0.0;
+            for (int k = 0; k < width; ++ k)
+                Pval += M[row * width + k] * N[k * width + col];
+            P[row * width + col] = Pval;
+        }
     }
 }
 
@@ -38,14 +77,45 @@ void matmul(float *M, float *N, float *P, int width)
     dim3 dimGrid(gx, gy, 1);
 
     // Warmup
-    matmulKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+    switch (mode)
+    {
+    case 0:
+        matmulKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+        break;
+    case 1:
+        matmulRowKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+        break;
+    case 2:
+        matmulColKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+        break;
+    default:
+        fprintf(stderr, "Not supported mode\n");
+        exit(1);
+        break;
+    }
+    
     CHECK(cudaGetLastError());
     cudaDeviceSynchronize();
 
     // Benchmark
     double start_time = cpuSecond();
     for (int i = 0; i < r; ++i)
-        matmulKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+       switch (mode)
+        {
+        case 0:
+            matmulKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+            break;
+        case 1:
+            matmulRowKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+            break;
+        case 2:
+            matmulColKernel<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, width);
+            break;
+        default:
+            fprintf(stderr, "Not supported mode\n");
+            exit(1);
+            break;
+        }
     CHECK(cudaGetLastError());
     cudaDeviceSynchronize();
     double end_time = cpuSecond();
@@ -63,21 +133,22 @@ void matmul(float *M, float *N, float *P, int width)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 5)
+    if (argc != 6)
     {
-        fprintf(stderr, "%s <width> <bx> <by> <r>\n", argv[0]);
+        fprintf(stderr, "%s <mode> <width> <bx> <by> <r>\n", argv[0]);
         exit(1);
     }
 
-    int width = atoi(argv[1]);
-    bx = atoi(argv[2]);
-    by = atoi(argv[3]);
-    r = atoi(argv[4]);
+    mode = atoi(argv[1]);
+    int width = atoi(argv[2]);
+    bx = atoi(argv[3]);
+    by = atoi(argv[4]);
+    r = atoi(argv[5]);
 
     size_t size = width * width * sizeof(float);
-    float *M = (float *)malloc(size);
-    float *N = (float *)malloc(size);
-    float *P = (float *)malloc(size);
+    float *M = (float *) malloc(size);
+    float *N = (float *) malloc(size);
+    float *P = (float *) malloc(size);
 
     // Prepare matrix
     for (int i = 0; i < width; ++i)
@@ -89,7 +160,36 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Sequential solution
+    // float *Pans = (float *) malloc(size);
+    // for (int row = 0; row < width; ++ row)
+    // {
+    //     for (int col = 0; col < width; ++ col)
+    //     {
+    //         float Pval = 0.0;
+    //         for (int k = 0; k < width; ++ k)
+    //         {
+    //             Pval += M[row * width + k] * N[k * width + col];
+    //         }
+    //         P[row * width + col] = Pval;
+    //     }
+    // }
+
     matmul(M, N, P, width);
+
+    // Verify
+    // for (int row = 0; row < width; ++ row)
+    // {
+    //     for (int col = 0; col < width; ++ col)
+    //     {
+    //         if (fabs(P[row * width + col] - Pans[row * width + col]) > 1e4)
+    //         {
+    //             fprintf(stderr, "Incorrect at (%d, %d): %.6lf should be %.6lf\n", row, col, P[row * width + col], Pans[row * width + col]);
+    //             exit(1);
+    //         }
+    //     }
+    // }
+    // printf("Correct\n");
 
     free(M);
     free(N);
